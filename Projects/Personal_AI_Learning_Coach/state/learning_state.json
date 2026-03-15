@@ -1,0 +1,104 @@
+{
+    "roadmap": [
+        {
+            "week": 1,
+            "topics": [
+                "Introduction to Machine Learning",
+                "Types of Machine Learning",
+                "Key Concepts and Terminology"
+            ]
+        },
+        {
+            "week": 2,
+            "topics": [
+                "Data Types and Structures",
+                "Data Collection Methods",
+                "Data Preprocessing Techniques"
+            ]
+        },
+        {
+            "week": 3,
+            "topics": [
+                "Introduction to Python for Machine Learning",
+                "Key Python Libraries (NumPy, Pandas)",
+                "Basic Data Visualization with Matplotlib"
+            ]
+        },
+        {
+            "week": 4,
+            "topics": [
+                "Exploratory Data Analysis",
+                "Statistical Concepts in Machine Learning",
+                "Basics of Probability"
+            ]
+        },
+        {
+            "week": 5,
+            "topics": [
+                "Supervised Learning Overview",
+                "Regression Analysis",
+                "Introduction to Classification"
+            ]
+        },
+        {
+            "week": 6,
+            "topics": [
+                "Linear Regression in Depth",
+                "Logistic Regression Fundamentals",
+                "Evaluation Metrics for Regression"
+            ]
+        },
+        {
+            "week": 7,
+            "topics": [
+                "Decision Trees",
+                "Support Vector Machines",
+                "K-Nearest Neighbors"
+            ]
+        },
+        {
+            "week": 8,
+            "topics": [
+                "Ensemble Learning (Bagging and Boosting)",
+                "Random Forests",
+                "Model Evaluation Metrics for Classification"
+            ]
+        },
+        {
+            "week": 9,
+            "topics": [
+                "Unsupervised Learning Overview",
+                "Clustering Techniques (K-Means, Hierarchical)",
+                "Dimensionality Reduction (PCA)"
+            ]
+        },
+        {
+            "week": 10,
+            "topics": [
+                "Introduction to Neural Networks",
+                "Activation Functions",
+                "Backpropagation Basics"
+            ]
+        },
+        {
+            "week": 11,
+            "topics": [
+                "Deep Learning Overview",
+                "Convolutional Neural Networks (CNNs)",
+                "Recurrent Neural Networks (RNNs)"
+            ]
+        },
+        {
+            "week": 12,
+            "topics": [
+                "Model Deployment Techniques",
+                "Real-world Applications of Machine Learning",
+                "Future Trends in Machine Learning"
+            ]
+        }
+    ],
+    "topic": "machine learning",
+    "current_week": 1,
+    "current_topic_index": 0,
+    "completed_topics": []
+}

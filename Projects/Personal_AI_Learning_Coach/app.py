@@ -1,0 +1,228 @@
+from agno.agent import Agent
+from agno.models.openai import OpenAIChat
+from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.arxiv import ArxivTools
+from agno.os import AgentOS
+from agno.db.in_memory import InMemoryDb
+from agno.tools.youtube import YouTubeTools
+from agno.tools.websearch import WebSearchTools
+from tools.progress_tool import store_roadmap, get_next_topic, complete_topic
+from tools.evaluation_tool import evaluate_quiz
+from agno.team import Team
+from pathlib import Path
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+#initialize the model
+model=OpenAIChat("gpt-4o-mini")
+
+#createdb
+db=InMemoryDb()
+
+#create roadmap plannner agent
+planner_agent = Agent(
+    id="Learning_planner_agent",
+    name="Learning Planner agent",
+    model=model,
+    role="Creates structured learning roadmaps for any topic.",
+    instructions="""
+    You are an expert learning planner.
+    Your job is to create structured learning roadmaps for a given topic.
+    Rules:
+    1. Divide the roadmap into weekly modules.
+    2. Each week should contain 3–5 topics.
+    3. Start from fundamentals and gradually move to advanced topics.
+    4. The roadmap should be realistic and suitable for beginners.
+    Return the roadmap ONLY in JSON format using this structure:
+    {
+      "topic": "",
+      "duration_weeks": "",
+      "roadmap": [
+        {
+          "week": 1,
+          "topics": []
+        }
+      ]
+    }
+    Do not include explanations outside JSON.
+    """
+    )
+
+#create teacher agent
+teacher_agent = Agent(
+    id="AI_teacher",
+    name="AI Teacher",
+    model=model,
+    role="Explains technical topics and recommends learning resources.",
+    tools=[
+        DuckDuckGoTools(),
+        YouTubeTools(),
+        ArxivTools()
+    ],
+    instructions=["""
+        You are an expert AI teacher.
+        Your job is to teach concepts clearly and provide reliable learning resources.
+        You have access to these tools:
+        1.Use DuckDuckGo Search to find beginner-friendly explanations, tutorials, and articles.
+        2.Use YouTube Search to find helpful educational videos.
+        3.Use ArXiv to find research papers related to the topic.
+        When given a topic:
+        Step 1: Search DuckDuckGo to gather explanations.
+        Step 2: Search YouTube for educational videos.
+        Step 3: Search ArXiv for academic papers.
+        Step 4: Combine the information and teach the topic clearly.
+        Step 5: Make sure to use real life examples to teach the topic more clearly.
+        """],
+markdown=True,
+stream=True
+)
+
+#quiz generator agent
+quiz_agent = Agent(
+    id="Quiz_generator_agent",
+    name="Quiz Generator agent",
+    model=model,
+    role="Generates quiz questions to test the learner's understanding of a topic.",
+    instructions=["""
+    You are an AI quiz generator.
+    Your task is to create quiz questions to test a learner's understanding of a topic.
+    Rules:
+    - Questions should test conceptual understanding.
+    - Questions should be suitable for beginners to advance.
+    - You should ask Multiple Choice Questions,Short Answer Questions,Conceptual Questions in every quiz. 
+    """],
+    markdown=True,
+    stream=True
+    )
+
+#progress tracker agent
+progress_agent = Agent(
+    id="Progress_tracker_agent",
+    name="Progress Tracker agent",
+    model=model,
+    role="Manages the learner's progress and roadmap.",
+    tools=[
+        store_roadmap,
+        get_next_topic,
+        complete_topic
+    ],
+    instructions=["""
+        You are responsible for tracking learning progress.
+        Your tasks:
+        - store the roadmap
+        - fetch the next topic
+        - mark topics as completed
+        Use the available tools to manage the learning state.
+        """]
+)
+
+#evaluation agent
+evaluation_agent = Agent(
+    id="evaluation_agent",
+    name="Evaluation Agent",
+    model=model,
+    role="Evaluates quiz results and determines if the learner understands the topic.",
+    tools=[evaluate_quiz,DuckDuckGoTools()],
+    instructions=[
+        """You evaluate quiz,short answers and conceptual answers performance.
+        Steps:
+        1. Use evaluate_quiz tool to calculate the score of the quiz.
+        2. If score is below 60%, the learner has weak understanding.
+        3. Recommend re-teaching the topic.
+        4. If score is above 60%, the learner can move forward.
+        5. Use your own knowledge or DuckDuckgotool to check short and conceptual answers.
+        6. Calculate the learner's performance based on your knowledge or DuckDuckgotool and check short or conceptual answers.
+        7.Provide a brief feedback of learner's performance and suggest the areas if needed to improve.
+        """]
+)
+
+#reflection agent
+reflection_agent = Agent(
+    id="reflection_agent",
+    name="Reflection Agent",
+    model=model,
+    role="Evaluates lessons generated by the teacher agent and improves them if needed.",
+    instructions=["""You are a reflection agent,who analyzes the teacher agent;s produced answers.
+        Evaluate the lesson based on:
+        1. Clarity of explanation
+        2. Difficulty level for beginners
+        3. Presence of examples
+        4. Logical flow of concepts
+        If the lesson is already good:
+        - approve it
+        If the lesson is weak:
+        - Use your knowledge along with the websearch tool and gather information about the lesson.
+        - improve the explanation using the information you gathered.
+        - simplify difficult parts.
+        - add real life examples.
+        - restructure the lesson if necessary
+        Return the final improved lesson in markdown format.
+        """
+    ],
+    tools=[WebSearchTools()],
+    stream=True,
+    markdown=True
+)
+
+#create manager
+Team_manager=Team(
+     id="Team_manager_agent",
+     name="Team manager agent",
+     model=model,
+     db=db,
+     role="Coordinates all agents to manage the learning workflow.",
+     members=[progress_agent,teacher_agent,quiz_agent,planner_agent,evaluation_agent,reflection_agent],
+     instructions=["""You are the Team Manager Agent responsible for coordinating multiple specialized agents to guide a learner through a structured learning journey.
+                  Your goal is to ensure that the learner follows a roadmap, receives clear explanations, takes quizzes, receives feedback, and progresses through topics effectively.
+                  Follow the workflow strictly and delegate tasks to the appropriate agents.
+                  Workflow:
+                  Step 1:Ask the Progress Agent whether a roadmap already exists for the learner.
+                  Step 2:If no roadmap exists, ask the Planner Agent to generate a structured learning roadmap for the requested topic.
+                  Step 3:Ask the Progress Agent to store the generated roadmap using the appropriate progress tracking tool.
+                  Step 4:Ask the **Progress Agent** to fetch the next topic that the learner should study.
+                  Step 5:Ask the **Teacher Agent** to teach the retrieved topic in a clear and beginner-friendly way using explanations, examples, and structured content.
+                  Step 6:Send the lesson produced by the Teacher Agent to the **Reflection Agent** so it can review the lesson for clarity, completeness, logical flow, and beginner friendliness.
+                  If improvements are suggested, use the improved version of the lesson before presenting it to the learner.
+                  Step 7:Present the finalized lesson to the learner.
+                  Step 8:Ask the **Quiz Agent** to generate quiz questions based on the taught topic.
+                  Step 9:Collect the learner's answers and pass them to the **Evaluation Agent** so it can evaluate the performance and determine the learner’s understanding level.
+                  Step 10:Based on the evaluation result:
+                    * If performance is **Good**, ask the **Progress Agent** to mark the topic as completed.
+                    * If performance is **Average**, ask the **Teacher Agent** to briefly revise the topic and reinforce key concepts.
+                    * If performance is **Poor**, ask the **Teacher Agent** to reteach the topic with simpler explanations and additional examples.
+                  Step 11:Repeat Steps 4–10 until all topics in the roadmap are completed.
+                  Step 12:Periodically remind the learner about their weekly goals and track how many topics remain for the week.
+                  Step 13:If the roadmap is fully completed, stop the workflow and inform the learner that the learning journey has been successfully completed.
+                  General Rules:
+                    * Always delegate tasks to the appropriate specialized agent.
+                    * Ensure progress is tracked continuously through the Progress Agent.
+                    * Ensure lessons are reviewed by the Reflection Agent before being delivered.
+                    * Ensure learner performance is evaluated by the Evaluation Agent after each quiz.
+                    * Maintain a supportive and encouraging tone for the learner throughout the journey.
+                    Note:If the roadmap is fully completed, stop the workflow and inform the learner that the learning journey is finished."""],
+     tools=[store_roadmap, get_next_topic, complete_topic,evaluate_quiz],
+     add_datetime_to_context=True,
+     add_history_to_context=True,
+     num_history_runs=10,
+     stream=True,
+     markdown=True,
+    )
+
+#=====================AgentOS=======================
+
+agent_os=AgentOS(
+    id="Ai_learning_coach_os",
+    name="AI Learning Coach",
+    description="AI Learning Coach who designs roadmap for the topic provided ,gathers data teaches topics takes quizzes evaluate performance and provide feedback",
+    teams=[Team_manager]
+)
+
+#create fast api app
+app=agent_os.get_app()
+
+if __name__=="__main__":
+    agent_os.serve(
+        app='app:app',
+    )
